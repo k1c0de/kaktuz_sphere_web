@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Edytor Drag & Drop (GrapesJS z blokiem YouTube)</title>
+  <link href="https://unpkg.com/grapesjs/dist/css/grapes.min.css" rel="stylesheet"/>
+  <style>
+    body, html { height: 100%; margin: 0; }
+    #gjs { border: 3px solid #222; min-height: 80vh; background: #fff; }
+    .export-btn { margin: 10px 0; padding: 6px 16px; font-size: 1em; }
+  </style>
+</head>
+<body>
+  <button class="export-btn" onclick="exportHTML()">Eksportuj kod HTML</button>
+  <pre id="exported" style="background:#23272a;color:#fff;padding:10px;display:none"></pre>
+  <div id="gjs">
+    <h1>Witaj w edytorze strony!</h1>
+    <p>Przeciągaj bloki, edytuj treść, osadzaj filmy z YouTube, eksportuj kod HTML i wrzuć go do repozytorium.</p>
+  </div>
+  <script src="https://unpkg.com/grapesjs"></script>
+  <script>
+    const editor = grapesjs.init({
+      container: '#gjs',
+      fromElement: true,
+      width: 'auto',
+      height: '80vh',
+      storageManager: false,
+      blockManager: {
+        appendTo: '#gjs',
+        blocks: [
+          { id: 'section', label: 'Sekcja', content: '<section><h2>Tytuł sekcji</h2><p>Opis sekcji...</p></section>' },
+          { id: 'text', label: 'Tekst', content: '<div>Nowy tekst...</div>' },
+          { id: 'image', label: 'Obraz', content: '<img src="https://placehold.co/400x200" alt="obrazek">' },
+          { id: 'button', label: 'Przycisk', content: '<button>Kliknij mnie!</button>' },
+          {
+            id: 'youtube',
+            label: 'YouTube',
+            content: `<div data-gjs-type="youtube" style="padding: 10px; background: #000;">
+              <iframe width="560" height="315" src="https://www.youtube.com/embed/YOUR_VIDEO_ID" frameborder="0" allowfullscreen></iframe>
+              <div style="color:white;font-size:12px;">Kliknij dwa razy, by wkleić własny link</div>
+            </div>`,
+            category: 'Media',
+          }
+        ]
+      }
+    });
+
+    // YouTube custom block: double-click to edit link
+    editor.DomComponents.addType('youtube', {
+      isComponent: el => el.tagName === 'DIV' && el.querySelector('iframe'),
+      model: {
+        defaults: {
+          editable: true,
+          droppable: false,
+          traits: [{
+            type: 'text',
+            label: 'YouTube URL',
+            name: 'youtube-url',
+            changeProp: 1
+          }],
+          'youtube-url': 'https://www.youtube.com/embed/YOUR_VIDEO_ID'
+        },
+
+        init() {
+          this.listenTo(this, 'change:youtube-url', this.updateYouTube);
+        },
+
+        updateYouTube() {
+          const url = this.get('youtube-url');
+          const iframe = this.view.el.querySelector('iframe');
+          if (iframe) iframe.src = url;
+        }
+      },
+      view: {
+        events: {
+          dblclick: 'editYouTube'
+        },
+        editYouTube() {
+          const url = prompt('Podaj pełny link do filmu na YouTube:');
+          if (url) {
+            // Extract video ID from URL
+            const match = url.match(/(?:youtube\.com.*v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+            const videoId = match ? match[1] : 'YOUR_VIDEO_ID';
+            const embedUrl = 'https://www.youtube.com/embed/' + videoId;
+            this.model.set('youtube-url', embedUrl);
+            this.render();
+          }
+        }
+      }
+    });
+
+    window.exportHTML = function() {
+      const html = editor.getHtml();
+      document.getElementById('exported').style.display = 'block';
+      document.getElementById('exported').textContent = html;
+    }
+  </script>
+</body>
+</html>
